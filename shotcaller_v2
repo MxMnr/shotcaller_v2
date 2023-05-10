@@ -1,0 +1,263 @@
+-- SCREEN SHOT CALLER by Max Miner - A research automation tool for designers and strategists to grab screenshots across an entire website and at varying device sizes/types
+
+
+
+--GLOBAL VARIABLES
+set theURL to ""
+set theDeviceType to ""
+set shotType to ""
+set deviceTypeList to {"All", "Mobile", "Desktop", "Tablet"}
+set shotTypeList to {"Full page", "Above the fold"}
+set theResWidth to ""
+set theResHeight to ""
+set urlList to {}
+
+--GET STARTED BY DEFINING URL TO CAPTURE & SCREENSHOT SPECS
+set appSettings to getStarted(theURL, theDeviceType, deviceTypeList, shotTypeList, shotType, theResWidth, theResHeight)
+set theURL to item 1 of appSettings
+set shotType to the last item of appSettings
+set theDevice to item 2 of appSettings
+if theDevice is "All" then
+	set theResWidth to item 3 of appSettings
+	set theResHeight to item 4 of appSettings
+else if theDevice is "Desktop" then
+	set theResWidth to item 3 of appSettings
+	set theResHeight to item 4 of appSettings
+end if
+--set theDevice to theDeviceType as string
+set urlList to getURLlist(theURL)
+set pickFromList to chooseFromURLlist(urlList, theURL)
+repeat with i from 1 to number of items in pickFromList
+	set theURL to item i of pickFromList
+	-- GET MOBILE SCREENSHOT
+	if theDevice is "Mobile" then
+		set getScreen to getMobileTablet(theURL, theDevice, shotType, theResWidth, theResHeight)
+	end if
+	-- GET TABLET SCREENSHOT
+	if theDevice is "Tablet" then
+		set getScreen to getMobileTablet(theURL, theDevice, shotType, theResWidth, theResHeight)
+	end if
+	-- GET DESKTOP SCREENSHOT
+	if theDevice is "Desktop" then
+		set getScreen to getDesktop(theURL, theDevice, shotType, theResWidth, theResHeight)
+	end if
+	-- GET ALL SCREENSHOTS
+	if theDevice is "All" then
+		set theDevice to "Mobile"
+		set getScreen to getMobileTablet(theURL, theDevice, shotType, theResWidth, theResHeight)
+		delay 1.5
+		set theDevice to "Tablet"
+		set getScreen to getMobileTablet(theURL, theDevice, shotType, theResWidth, theResHeight)
+		delay 1.5
+		set theDevice to "Desktop"
+		set getScreen to getMobileTablet(theURL, theDevice, shotType, theResWidth, theResHeight)
+	end if
+	delay 1
+end repeat
+
+
+
+
+
+
+-- ////////// SECONDARY FUNCTIONS //////////
+-- //////////
+on getStarted(theURL, theDeviceType, deviceTypeList, shotTypeList, shotType, theResWidth, theResHeight)
+	displayWelcome()
+	set theURL to setTheURL(theURL)
+	set chooseType to chooseDeviceType(theDeviceType, deviceTypeList, theResWidth, theResHeight)
+	set chooseShotType to chooseShotType(shotType, shotTypeList)
+	set shotType to chooseShotType
+	if chooseType contains "Desktop" then
+		set theDeviceType to item 1 of chooseType
+		set theResWidth to item 2 of chooseType
+		set theResHeight to item 3 of chooseType
+	else if chooseType contains "All" then
+		set theDeviceType to item 1 of chooseType
+		set theResWidth to item 2 of chooseType
+		set theResHeight to item 3 of chooseType
+	else
+		set theDeviceType to chooseType
+	end if
+	return {theURL, theDeviceType, theResWidth, theResHeight, shotType}
+end getStarted
+
+-- GET MOBILE OR TABLET SCREENSHOT
+on getMobileTablet(theURL, theDevice, shotType, theResWidth, theResHeight)
+	set openURL to opentheURL(theURL)
+	set openDevTools to openDevTools()
+	delay 0.5
+	set adjustSettings to updateDevice(theDevice, theResWidth, theResHeight)
+	delay 0.5
+	set callShot to getScreenShot(shotType)
+end getMobileTablet
+
+-- GET DESKTOP SCREENSHOT
+on getDesktop(theURL, theDevice, shotType, theResWidth, theResHeight)
+	set openURL to opentheURL(theURL)
+	set openDevTools to openDevTools()
+	set adjustSettings to updateDevice(theDevice, theResWidth, theResHeight)
+	set callShot to getScreenShot(shotType)
+end getDesktop
+
+-- GET MULTIPLE URLS FROM WEB PAGE
+on getURLlist(theURL)
+	tell application "Automator"
+		set theWorkflow to workflow "Get URLS from WebPage"
+		set theVariable to the variable "theURL" of theWorkflow
+		set the value of theVariable to theURL
+		set getLinks to {}
+		set getLinks to execute theWorkflow
+		set urlList to the execution result of theWorkflow
+		return urlList
+	end tell
+end getURLlist
+-- CHOOSE FROM URL LIST
+
+on chooseFromURLlist(urlList, theURL)
+	if urlList is {} then
+		set urlList to theURL
+	else
+		set theList to choose from list urlList with title "Choose URL(s) to Capture" with prompt "Select one or more of the URL's in this list to capture screenshots" default items 1 OK button name "Select" with multiple selections allowed without empty selection allowed
+	end if
+	return theList
+end chooseFromURLlist
+
+-- ////////// PRIMARY FUNCTIONS BUILD //////////
+-- //////////
+
+-- OPEN URL IN CHROME
+on opentheURL(theURL)
+	tell application "Google Chrome.app"
+		open location theURL
+		set tabRef to the «class acTa» of window 1
+		if «class ldng» of tabRef is true then
+			delay 2
+		end if
+		
+	end tell
+end opentheURL
+
+-- Open Dev Tools
+on openDevTools()
+	tell application "System Events"
+		tell process "Google Chrome"
+			keystroke "c" using {command down, option down}
+			delay 1
+		end tell
+	end tell
+end openDevTools
+
+-- Update Device Type
+on updateDevice(theDevice, theResWidth, theResHeight)
+	if theDevice contains "Mobile" is true then
+		set getCount to 8
+		makeSettings(getCount)
+	else if theDevice contains "Tablet" is true then
+		set getCount to 10
+		makeSettings(getCount)
+		--		tell application "System Events"
+		--			tell process "Google Chrome"
+		--				repeat 3 times
+		--					key code 48
+		--				end repeat
+		--				key code 36
+		--				keystroke "r" using command down
+		--				delay 2
+		--			end tell
+		--		end tell
+	else if theDevice contains "Desktop" is true then
+		set getCount to 1
+		makeSettings(getCount)
+		tell application "System Events"
+			tell process "Google Chrome"
+				key code 48
+				keystroke theResWidth
+				key code 36
+				key code 48
+				keystroke theResHeight
+				key code 36
+				keystroke "r" using command down
+				delay 2
+			end tell
+		end tell
+	end if
+end updateDevice
+on makeSettings(getCount)
+	tell application "System Events"
+		tell process "Google Chrome"
+			keystroke "l" using command down
+			delay 0.25
+			key code 48
+			delay 0.25
+			key code 36
+			delay 0.15
+			repeat getCount times
+				key code 125
+				delay 0.25
+			end repeat
+			delay 0.25
+			key code 36
+			delay 0.25
+			keystroke "r" using command down
+			delay 3
+		end tell
+	end tell
+end makeSettings
+
+
+-- GET SCREEN SHOT
+
+on getScreenShot(shotType)
+	if shotType is "Full page" then
+		set shotType to "capture full size" as string
+	else
+		set shotType to "capture screenshot" as string
+	end if
+	tell application "System Events"
+		tell process "Google Chrome"
+			keystroke "p" using {command down, shift down}
+			delay 0.25
+			keystroke shotType
+			delay 0.5
+			key code 36
+		end tell
+	end tell
+end getScreenShot
+
+-- DISPLAY WELCOME
+on displayWelcome()
+	set displayWelcome to display dialog "Welcome to the Screen Catcher. Ready to capture a screenshot?" buttons {"cancel", "continue"} default button 2 cancel button 1 with title "SCREEN_CATCHER"
+	set displayWelcome to the button returned of displayWelcome
+end displayWelcome
+
+-- ASK FOR URL
+on setTheURL(theURL)
+	set askURL to display dialog "What URL would you like to capture?" default answer "https://example.com" buttons {"NEXT"} default button 1 with title "ENTER URL TO CAPTURE"
+	set theURL to the text returned of askURL
+	return theURL
+end setTheURL
+
+-- ASK FOR DEVICE TYPES - ALL / DESKTOP / TABLE / MOBILE
+on chooseDeviceType(theDeviceType, deviceTypeList, theResWidth, theResHeight)
+	set chooseType to choose from list deviceTypeList with title "Choose Device Type" with prompt "Choose one of the following options to specify which device type(s) to be used for your screenshot(s):" default items "All" OK button name "Select" without multiple selections allowed and empty selection allowed
+	set theDeviceType to chooseType as string
+	if (theDeviceType is "All") or (theDeviceType is "Desktop") is true then
+		set askResolution to display dialog "What resolution would you like to set for the Desktop screenshot(s)?" default answer "1440, 1024" buttons {"Submit"} default button 1 with title "DEFINE DESKTOP SIZE"
+		set resText to the text returned of askResolution
+		set commaCount to offset of "," in resText
+		set resCount to count of the characters of resText
+		set theResWidth to characters 1 thru (commaCount - 1) of resText as string
+		set theResHeight to characters (commaCount + 2) thru resCount of resText as string
+		return {theDeviceType, theResWidth, theResHeight}
+	else
+		return theDeviceType
+	end if
+end chooseDeviceType
+
+-- ASK FOR CAPTURE TYPES - FULL PAGE VS ABOVE THE FOLD
+on chooseShotType(shotType, shotTypeList)
+	set chooseShot to choose from list shotTypeList with title "Choose Screenshot Type" with prompt "Choose the type of screenshot you would like to capture using ScreenShotCaller" default items "Full page" OK button name "Select" without multiple selections allowed and empty selection allowed
+	set shotType to chooseShot as string
+	return shotType
+end chooseShotType
